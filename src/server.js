@@ -12,12 +12,17 @@ import stockMovementsRoutes from "./routes/stockMovements.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import loginAttemptsRoutes from "./routes/loginAttempts.routes.js";
 
-const port = 3000;
+const port = process.env.PORT || 3000;
 const app = express();
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
     credentials: true,
   }),
 );
