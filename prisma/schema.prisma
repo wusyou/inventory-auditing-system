@@ -1,0 +1,123 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+
+enum MovementType {
+  stock_in
+  stock_out
+  adjustment
+}
+
+enum UserRole {
+  admin
+  staff
+  auditor
+}
+
+model User {
+  id Int @id @default(autoincrement())
+  fullName String
+  email String @unique
+  passwordHash String
+  role UserRole @default(staff)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  stockMovements StockMovement[]
+  auditLogs AuditLog[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model StockMovement {
+  id Int @id @default(autoincrement())
+  productId Int
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  movementType MovementType
+  quantity Int
+  referenceNo String?
+  reason String?
+  performedById Int
+  performedBy User @relation(fields: [performedById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@map("stock_movements")
+}
+
+model AuditLog {
+  id BigInt @id @default(autoincrement())
+  tableName String
+  recordId Int
+  action String
+  oldData Json?
+  newData Json?
+  changedById Int?
+  changedBy User? @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  changedAt DateTime @default(now())
+  
+  @@index([tableName, recordId])
+  @@map("audit_logs")
+}
+
+model Category {
+  id Int @id @default(autoincrement())
+  name String @unique
+  createdAt DateTime @default(now())
+  description String?
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id Int @id @default(autoincrement())
+  sku String @unique 
+  name String
+  categoryId Int?
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  unit String @default("pcs")
+  quantityOnHand Int @default(0)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  stockMovements StockMovement[]
+
+  @@map("products")
+}
+
+model RefreshToken {
+  id Int @id @default(autoincrement())
+  tokenHash String @unique
+  userId Int
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime 
+  revokedAt DateTime? 
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+  @@index([userId])
+}
+
+model LoginAttempt {
+  id        Int      @id @default(autoincrement())
+  email     String
+  success   Boolean
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("login_attempts")
+}
+
