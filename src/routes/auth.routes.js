@@ -7,6 +7,15 @@ import { loginRateLimiter } from "../middleware/loginRateLimiter.js";
 
 const router = express.Router();
 
+const isProduction = process.env.NODE_ENV === "production";
+
+const refreshCookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
+
 function generateRefreshToken() {
   const token = randomBytes(64).toString("hex");
   const tokenHash = createHash("sha256").update(token).digest("hex");
@@ -53,12 +62,7 @@ router.post("/login", loginRateLimiter, async (req, res) => {
       { expiresIn: "15m" },
     );
 
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("refreshToken", refreshToken, refreshCookieOptions);
 
     await logAttempt(true);
     return res.json({ token });
@@ -112,12 +116,7 @@ router.post("/refresh", async (req, res) => {
       },
     });
 
-    res.cookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("refreshToken", newRefreshToken, refreshCookieOptions);
 
     const user = await prisma.user.findUnique({
       where: { id: storedToken.userId },
@@ -158,7 +157,8 @@ router.post("/logout", async (req, res) => {
 
     res.clearCookie("refreshToken", {
       httpOnly: true,
-      sameSite: "strict",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
     });
 
     return res.json({ message: `Logged out` });
